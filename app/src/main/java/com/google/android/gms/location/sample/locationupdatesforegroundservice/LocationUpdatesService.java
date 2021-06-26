@@ -63,20 +63,7 @@ import com.google.android.gms.tasks.Task;
 
 import java.util.List;
 
-/**
- * A bound and started service that is promoted to a foreground service when location updates have
- * been requested and all clients unbind.
- *
- * For apps running in the background on "O" devices, location is computed only once every 10
- * minutes and delivered batched every 30 minutes. This restriction applies even to apps
- * targeting "N" or lower which are run on "O" devices.
- *
- * This sample show how to use a long-running service for location updates. When an activity is
- * bound to this service, frequent location updates are permitted. When the activity is removed
- * from the foreground, the service promotes itself to a foreground service, and location updates
- * continue. When the activity comes back to the foreground, the foreground service stops, and the
- * notification associated with that service is removed.
- */
+
 public class LocationUpdatesService extends Service {
 
     private static final String PACKAGE_NAME =
