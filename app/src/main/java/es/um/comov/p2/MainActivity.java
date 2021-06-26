@@ -36,27 +36,21 @@ public class MainActivity extends AppCompatActivity implements
         SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    /**
-     *
-     */
+    // Manejador broadcast de las emisiones del servicio de muestra
     private MainActivityBroadcastReceiver broadcastReceiver;
 
-    /**
-     * Referencia al servicio de muestras
-     */
+    //Referencia al servicio de muestras
     private SamplesService samplesService = null;
 
-    // Service for requesting permissions and decoupling permissions from activity
+    // Servicio para desacoplar las peticiones de permisos de la actividad principal
     private PermissionService permissionService;
 
-    // Tracks the bound state of the service.
+    // Variable para seguir el estado de enlace con el servicio
     private boolean mBound = false;
 
-    // UI elements.
-    private Button mRequestLocationUpdatesButton;
-    private Button mRemoveLocationUpdatesButton;
-    private Button toMapButton;
-
+    // Elementos de vista
+    private Button requestLocationUpdatesButton;
+    private Button removeLocationUpdatesButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,40 +74,16 @@ public class MainActivity extends AppCompatActivity implements
         PreferenceManager.getDefaultSharedPreferences(this)
                 .registerOnSharedPreferenceChangeListener(this);
 
-        mRequestLocationUpdatesButton = (Button) findViewById(R.id.request_location_updates_button);
-        mRemoveLocationUpdatesButton = (Button) findViewById(R.id.remove_location_updates_button);
-        toMapButton = (Button) findViewById(R.id.map_button);
-
-        mRequestLocationUpdatesButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                statusCheck();
-                if (!permissionService.checkPermissions()) {
-                    permissionService.requestPermissions();
-                } else {
-                    samplesService.requestLocationUpdates();
-                }
-            }
-        });
-
-        mRemoveLocationUpdatesButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                samplesService.removeLocationUpdates();
-            }
-        });
-
-        toMapButton.setOnClickListener((view) -> {
-            Intent intent = new Intent(this, CoverageMapActivity.class);
-            startActivity(intent);
-        });
-
-        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
-        setButtonsState(Utils.requestingLocationUpdates(this));
+        requestLocationUpdatesButton = (Button) findViewById(R.id.request_location_updates_button);
+        removeLocationUpdatesButton = (Button) findViewById(R.id.remove_location_updates_button);
 
         // Aquí la actividad se enlaza con el servicio
         bindService(new Intent(this, SamplesService.class), mServiceConnection,
                 Context.BIND_AUTO_CREATE);
+
+        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
+        setButtonsState(Utils.requestingLocationUpdates(this));
+
     }
 
     @Override
@@ -132,9 +102,8 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onStop() {
         if (mBound) {
-            // Unbind from the service. This signals to the service that this activity is no longer
-            // in the foreground, and the service can respond by promoting itself to a foreground
-            // service.
+            // Nos desvinculamos del servicio, esto puede hacer que el servicio se convierta
+            // en un foreground service (servicio de primer plano)
             unbindService(mServiceConnection);
             mBound = false;
         }
@@ -143,22 +112,13 @@ public class MainActivity extends AppCompatActivity implements
         super.onStop();
     }
 
-    @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
-        // Update the buttons state depending on whether location updates are being requested.
-        if (s.equals(Utils.KEY_REQUESTING_LOCATION_UPDATES)) {
-            setButtonsState(sharedPreferences.getBoolean(Utils.KEY_REQUESTING_LOCATION_UPDATES,
-                    false));
-        }
-    }
-
     private void setButtonsState(boolean requestingLocationUpdates) {
         if (requestingLocationUpdates) {
-            mRequestLocationUpdatesButton.setEnabled(false);
-            mRemoveLocationUpdatesButton.setEnabled(true);
+            requestLocationUpdatesButton.setEnabled(false);
+            removeLocationUpdatesButton.setEnabled(true);
         } else {
-            mRequestLocationUpdatesButton.setEnabled(true);
-            mRemoveLocationUpdatesButton.setEnabled(false);
+            requestLocationUpdatesButton.setEnabled(true);
+            removeLocationUpdatesButton.setEnabled(false);
         }
     }
 
@@ -174,22 +134,52 @@ public class MainActivity extends AppCompatActivity implements
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+        builder.setMessage("El GPS está deshabilidtado, ¿Desea conectarlo?")
                 .setCancelable(false)
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                        setButtonsState(true);
-                    }
+                .setPositiveButton("Sí", (dialog, id) -> {
+                    startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                    setButtonsState(true);
                 })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        dialog.cancel();
-                        setButtonsState(false);
-                    }
+                .setNegativeButton("No", (dialog, id) -> {
+                    dialog.cancel();
+                    setButtonsState(false);
                 });
         final AlertDialog alert = builder.create();
         alert.show();
+    }
+
+
+    /**
+     * MANEJADORES Y HOOKS
+     */
+    public void onRequestLocationUpdatesButton(View v) {
+        statusCheck();
+        if (!permissionService.checkPermissions()) {
+            permissionService.requestPermissions();
+        } else {
+            samplesService.requestLocationUpdates();
+        }
+    }
+
+    public void onRemoveLocationUpdatesButton(View v) {
+        samplesService.removeLocationUpdates();
+    }
+
+    public void onToMapButton(View v) {
+        Intent intent = new Intent(this, CoverageMapActivity.class);
+        startActivity(intent);
+    }
+
+    /**
+     * Manejador para escuchar los cambios realizados en las SharedPreferences
+     */
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        // Cambia el estado de los botones según se estén recibiendo actualizaciones de estado o no
+        if (s.equals(Utils.KEY_REQUESTING_LOCATION_UPDATES)) {
+            setButtonsState(sharedPreferences.getBoolean(Utils.KEY_REQUESTING_LOCATION_UPDATES,
+                    false));
+        }
     }
 
     /**

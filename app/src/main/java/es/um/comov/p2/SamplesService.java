@@ -128,14 +128,9 @@ public class SamplesService extends Service {
     private Location mLocation;
     private TelephonyManager telephonyManager;
     private Path path;
-    private boolean requestingLocationUpdates;
 
     public Path getPath() {
         return this.path;
-    }
-
-    public boolean getRequestingLocationUpdates() {
-        return this.requestingLocationUpdates;
     }
 
     public SamplesService() {
@@ -188,12 +183,12 @@ public class SamplesService extends Service {
         boolean startedFromNotification = intent.getBooleanExtra(EXTRA_STARTED_FROM_NOTIFICATION,
                 false);
 
-        // We got here because the user decided to remove location updates from the notification.
+        // Aquí se llega cuando el usuario decide dejar de recibir la posición desde las notificaciones
         if (startedFromNotification) {
             removeLocationUpdates();
             stopSelf();
         }
-        // Tells the system to not try to recreate the service after it has been killed.
+
         return START_NOT_STICKY;
     }
 
@@ -252,7 +247,6 @@ public class SamplesService extends Service {
         try {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                     mLocationCallback, Looper.myLooper());
-            requestingLocationUpdates = true;
         } catch (SecurityException unlikely) {
             Utils.setRequestingLocationUpdates(this, false);
             Log.e(TAG, "Lost location permission. Could not request updates. " + unlikely);
@@ -269,7 +263,6 @@ public class SamplesService extends Service {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
             Utils.setRequestingLocationUpdates(this, false);
             stopSelf();
-            requestingLocationUpdates = false;
         } catch (SecurityException unlikely) {
             Utils.setRequestingLocationUpdates(this, true);
             Log.e(TAG, "Lost location permission. Could not remove updates. " + unlikely);

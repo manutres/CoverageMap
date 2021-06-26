@@ -13,6 +13,7 @@ import com.google.android.material.snackbar.Snackbar;
 public class PermissionService {
 
     private static String TAG = PermissionService.class.getSimpleName();
+
     // For checking runtime permissions
     public static final int REQUEST_PERMISSIONS_REQUEST_CODE = 101;
 

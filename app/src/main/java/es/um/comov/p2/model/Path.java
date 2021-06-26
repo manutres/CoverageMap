@@ -26,7 +26,9 @@ public class Path {
     }
 
     public Sample getLastSample() {
-        return this.samples.get(this.samples.size()-1);
+        if(!this.samples.isEmpty())
+            return this.samples.get(this.samples.size()-1);
+        return null;
     }
 
     public List<Sample> getSamples() {
