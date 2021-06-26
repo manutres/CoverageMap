@@ -4,7 +4,6 @@ import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -43,7 +42,7 @@ public class MainActivity extends AppCompatActivity implements
     private SamplesService samplesService = null;
 
     // Servicio para desacoplar las peticiones de permisos de la actividad principal
-    private PermissionService permissionService;
+    private PermissionsController permissionService;
 
     // Variable para seguir el estado de enlace con el servicio
     private boolean mBound = false;
@@ -55,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        permissionService = new PermissionService(this);
+        permissionService = new PermissionsController(this);
         broadcastReceiver = new MainActivityBroadcastReceiver();
         setContentView(R.layout.activity_main);
 
@@ -223,7 +222,7 @@ public class MainActivity extends AppCompatActivity implements
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         Log.i(TAG, "onRequestPermissionResult");
-        if (requestCode == PermissionService.REQUEST_PERMISSIONS_REQUEST_CODE) {
+        if (requestCode == PermissionsController.REQUEST_PERMISSIONS_REQUEST_CODE) {
             if (grantResults.length <= 0) {
                 // If user interaction was interrupted, the permission request is cancelled and you
                 // receive empty arrays.

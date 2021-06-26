@@ -306,7 +306,7 @@ public class SamplesService extends Service {
         return false;
     }
 
-    
+
     private static int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
         int strength = 0;
         int cont = 0;

@@ -4,22 +4,21 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.util.Log;
-import android.view.View;
 
 import androidx.core.app.ActivityCompat;
 
 import com.google.android.material.snackbar.Snackbar;
 
-public class PermissionService {
+public class PermissionsController {
 
-    private static String TAG = PermissionService.class.getSimpleName();
+    private static String TAG = PermissionsController.class.getSimpleName();
 
     // For checking runtime permissions
     public static final int REQUEST_PERMISSIONS_REQUEST_CODE = 101;
 
     private Activity activity;
 
-    public PermissionService(Activity activity) {
+    public PermissionsController(Activity activity) {
         this.activity = activity;
     }
 
