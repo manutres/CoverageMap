@@ -225,7 +225,9 @@ public class SamplesService extends Service {
 
     @Override
     public void onDestroy() {
+        Utils.setRequestingLocationUpdates(this, false);
         mServiceHandler.removeCallbacksAndMessages(null);
+        super.onDestroy();
     }
 
 

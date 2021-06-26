@@ -80,9 +80,6 @@ public class MainActivity extends AppCompatActivity implements
         bindService(new Intent(this, SamplesService.class), mServiceConnection,
                 Context.BIND_AUTO_CREATE);
 
-        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
-        setButtonsState(Utils.requestingLocationUpdates(this));
-
     }
 
     @Override
@@ -90,6 +87,8 @@ public class MainActivity extends AppCompatActivity implements
         super.onResume();
         LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver,
                 new IntentFilter(SamplesService.ACTION_BROADCAST));
+        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
+        setButtonsState(Utils.requestingLocationUpdates(this));
     }
 
     @Override
@@ -167,6 +166,10 @@ public class MainActivity extends AppCompatActivity implements
     public void onToMapButton(View v) {
         Intent intent = new Intent(this, CoverageMapActivity.class);
         startActivity(intent);
+    }
+
+    public void onNetworkSettingsButton(View v) {
+        startActivity(new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS));
     }
 
     /**

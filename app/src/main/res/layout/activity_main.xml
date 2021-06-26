@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_main"
     android:layout_width="match_parent"
@@ -14,25 +15,34 @@
 
     <Button
         android:id="@+id/request_location_updates_button"
+        style="@android:style/Widget.DeviceDefault.Button.Colored"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/request_location_updates"
         android:onClick="onRequestLocationUpdatesButton"
-        />
+        android:text="@string/request_location_updates" />
 
     <Button
         android:id="@+id/remove_location_updates_button"
+        style="@style/Widget.AppCompat.Button.Colored"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/remove_location_updates"
         android:onClick="onRemoveLocationUpdatesButton"
-        />
+        android:text="@string/remove_location_updates" />
 
     <Button
         android:id="@+id/map_button"
+        style="@style/Widget.AppCompat.Button.Colored"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Ir al mapa"
         android:onClick="onToMapButton"
-        />
+        android:text="@string/to_map" />
+
+    <Button
+        android:id="@+id/button2"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="onNetworkSettingsButton"
+        android:text="@string/network_settings" />
+
 </LinearLayout>

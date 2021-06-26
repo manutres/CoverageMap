@@ -113,13 +113,12 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
             // Unbind from the service. This signals to the service that this activity is no longer
             // in the foreground, and the service can respond by promoting itself to a foreground
             // service.
+
             unbindService(mServiceConnection);
             mBound = false;
         }
-
         super.onStop();
     }
-
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
