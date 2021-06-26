@@ -132,6 +132,9 @@ public class SamplesService extends Service {
     public Path getPath() {
         return this.path;
     }
+    public Location getLocation() {
+        return this.mLocation;
+    }
 
     public SamplesService() {
     }
@@ -237,25 +240,22 @@ public class SamplesService extends Service {
     }
 
     /**
-     * Makes a request for location updates. Note that in this sample we merely log the
-     * {@link SecurityException}.
+     * Hace la petición para obtener actualizaciones periódicas de localización
      */
     public void requestLocationUpdates() {
-        Log.i(TAG, "Requesting location updates");
         Utils.setRequestingLocationUpdates(this, true);
         startService(new Intent(getApplicationContext(), SamplesService.class));
         try {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                     mLocationCallback, Looper.myLooper());
         } catch (SecurityException unlikely) {
+            Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
             Utils.setRequestingLocationUpdates(this, false);
-            Log.e(TAG, "Lost location permission. Could not request updates. " + unlikely);
         }
     }
 
     /**
-     * Removes location updates. Note that in this sample we merely log the
-     * {@link SecurityException}.
+     * Hace la petición para terminar las actualizaciones periodicas de localización
      */
     public void removeLocationUpdates() {
         Log.i(TAG, "Removing location updates");
@@ -264,49 +264,9 @@ public class SamplesService extends Service {
             Utils.setRequestingLocationUpdates(this, false);
             stopSelf();
         } catch (SecurityException unlikely) {
+            Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
             Utils.setRequestingLocationUpdates(this, true);
-            Log.e(TAG, "Lost location permission. Could not remove updates. " + unlikely);
         }
-    }
-
-    /**
-     * Returns the {@link NotificationCompat} used as part of the foreground service.
-     */
-    private Notification getNotification() {
-        Intent intent = new Intent(this, SamplesService.class);
-
-        CharSequence text = Utils.getLocationText(mLocation);
-
-        // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
-        intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
-
-        // The PendingIntent that leads to a call to onStartCommand() in this service.
-        PendingIntent servicePendingIntent = PendingIntent.getService(this, 0, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // The PendingIntent to launch activity.
-        PendingIntent activityPendingIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), 0);
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .addAction(R.drawable.ic_launch, getString(R.string.launch_activity),
-                        activityPendingIntent)
-                .addAction(R.drawable.ic_cancel, getString(R.string.remove_location_updates),
-                        servicePendingIntent)
-                .setContentText(text)
-                .setContentTitle(Utils.getLocationTitle(this))
-                .setOngoing(true)
-                .setPriority(NotificationManager.IMPORTANCE_HIGH)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setTicker(text)
-                .setWhen(System.currentTimeMillis());
-
-        // Set the Channel ID for Android O.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setChannelId(CHANNEL_ID); // Channel ID
-        }
-
-        return builder.build();
     }
 
     private void getLastLocation() {
@@ -346,12 +306,9 @@ public class SamplesService extends Service {
         }
     }
 
-    public Location getLocation() {
-        return this.mLocation;
-    }
-
     /**
-     * Sets the location request parameters.
+     * Instancia el objeto mLocationRequest, que sirve de configuración a la hora de solicitar
+     * la localización con el FusedLocationClient
      */
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
@@ -361,8 +318,9 @@ public class SamplesService extends Service {
     }
 
     /**
-     * Class used for the client Binder.  Since this service runs in the same process as its
-     * clients, we don't need to deal with IPC.
+     * Clase que se devuelve a las actividades que se bindean con el servicio.
+     * En este caso de volvemos el servicio al completo, por lo que las actividades que se enlancen
+     * con el servicio tendrán acceso a todos los métodos públicos de este
      */
     public class LocalBinder extends Binder {
         SamplesService getService() {
@@ -371,9 +329,8 @@ public class SamplesService extends Service {
     }
 
     /**
-     * Returns true if this is a foreground service.
-     *
-     * @param context The {@link Context}.
+     * Metodo para consultar si el servicio se encuentra en modo primer plano (foreground)
+     * El servicio se encontrará en este modo si no hay ninguna actividad enlazada (bind) con él
      */
     public boolean serviceIsRunningInForeground(Context context) {
         ActivityManager manager = (ActivityManager) context.getSystemService(
@@ -392,7 +349,7 @@ public class SamplesService extends Service {
     private static int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
         int strength = 0;
         int cont = 0;
-        List<CellInfo> cellInfos = telephonyManager.getAllCellInfo();   //This will give info of all sims present inside your mobile
+        List<CellInfo> cellInfos = telephonyManager.getAllCellInfo();
         if(cellInfos != null) {
             for (CellInfo cell: cellInfos) {
                 if (cell.isRegistered()) {
@@ -418,5 +375,50 @@ public class SamplesService extends Service {
             }
         }
         return strength/cont;
+    }
+
+    /**
+     * Gestión de las notificaciones para el modo primer plano (foreground) del servicio
+     */
+
+    /**
+     * Crea la notificación que se le muestra al usuario cuando el servicio se encuentra
+     * en modo primer plano (foreground service)
+     */
+    private Notification getNotification() {
+        Intent intent = new Intent(this, SamplesService.class);
+
+        CharSequence text = Utils.getLocationText(mLocation);
+
+        // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
+        intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
+
+        // The PendingIntent that leads to a call to onStartCommand() in this service.
+        PendingIntent servicePendingIntent = PendingIntent.getService(this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // The PendingIntent to launch activity.
+        PendingIntent activityPendingIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, MainActivity.class), 0);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .addAction(R.drawable.ic_launch, getString(R.string.launch_activity),
+                        activityPendingIntent)
+                .addAction(R.drawable.ic_cancel, getString(R.string.remove_location_updates),
+                        servicePendingIntent)
+                .setContentText(text)
+                .setContentTitle(Utils.getLocationTitle(this))
+                .setOngoing(true)
+                .setPriority(NotificationManager.IMPORTANCE_HIGH)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setTicker(text)
+                .setWhen(System.currentTimeMillis());
+
+        // Set the Channel ID for Android O.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setChannelId(CHANNEL_ID); // Channel ID
+        }
+
+        return builder.build();
     }
 }
