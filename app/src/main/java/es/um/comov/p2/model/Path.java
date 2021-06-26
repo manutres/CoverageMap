@@ -1,6 +1,4 @@
-package com.google.android.gms.location.sample.locationupdatesforegroundservice;
-
-import android.location.Location;
+package es.um.comov.p2.model;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -28,7 +26,9 @@ public class Path {
     }
 
     public Sample getLastSample() {
-        return this.samples.get(this.samples.size()-1);
+        if(!this.samples.isEmpty())
+            return this.samples.get(this.samples.size()-1);
+        return null;
     }
 
     public List<Sample> getSamples() {

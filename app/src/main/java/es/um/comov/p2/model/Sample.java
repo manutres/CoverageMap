@@ -1,4 +1,4 @@
-package com.google.android.gms.location.sample.locationupdatesforegroundservice;
+package es.um.comov.p2.model;
 
 import android.location.Location;
 
