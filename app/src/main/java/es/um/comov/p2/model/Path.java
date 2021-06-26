@@ -1,6 +1,4 @@
-package com.google.android.gms.location.sample.locationupdatesforegroundservice;
-
-import android.location.Location;
+package es.um.comov.p2.model;
 
 import java.util.LinkedList;
 import java.util.List;

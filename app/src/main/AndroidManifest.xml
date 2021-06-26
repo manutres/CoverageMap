@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.google.android.gms.location.sample.locationupdatesforegroundservice">
+    package="es.um.comov.p2">
 
     <!--
          The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
@@ -33,9 +33,9 @@
             android:value="@string/google_maps_key" />
 
         <activity
-            android:name=".CoverageMapActivity"
+            android:name="es.um.comov.p2.CoverageMapActivity"
             android:label="@string/title_activity_coverage_map"></activity>
-        <activity android:name=".MainActivity">
+        <activity android:name="es.um.comov.p2.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -43,7 +43,7 @@
             </intent-filter>
         </activity> <!-- Foreground services in Q+ require type. -->
         <service
-            android:name=".LocationUpdatesService"
+            android:name="es.um.comov.p2.SamplesService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="location" />

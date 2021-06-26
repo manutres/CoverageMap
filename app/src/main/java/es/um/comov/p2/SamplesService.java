@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.google.android.gms.location.sample.locationupdatesforegroundservice;
+package es.um.comov.p2;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.Notification;
@@ -26,7 +25,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.os.Binder;
@@ -37,7 +35,6 @@ import android.os.IBinder;
 import android.os.Looper;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -58,42 +55,41 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+
+import es.um.comov.p2.model.Path;
+import es.um.comov.p2.model.Sample;
+
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
 import java.util.List;
 
 
-public class LocationUpdatesService extends Service {
+public class SamplesService extends Service {
 
-    private static final String PACKAGE_NAME =
-            "com.google.android.gms.location.sample.locationupdatesforegroundservice";
+    private static final String PACKAGE_NAME = "es.um.comov.p2";
 
-    private static final String TAG = LocationUpdatesService.class.getSimpleName();
+    private static final String TAG = SamplesService.class.getSimpleName();
 
-    /**
-     * The name of the channel for notifications.
-     */
     private static final String CHANNEL_ID = "channel_01";
-
     static final String ACTION_BROADCAST = PACKAGE_NAME + ".broadcast";
-
     static final String EXTRA_SAMPLE = PACKAGE_NAME + ".sample";
-    static final String EXTRA_LOCATION = PACKAGE_NAME + ".location";
-    static final String EXTRA_SIGNAL_STRENGTH = PACKAGE_NAME + ".signalStrength";
-    private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME +
-            ".started_from_notification";
+    private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
 
     private final IBinder mBinder = new LocalBinder();
 
     /**
-     * The desired interval for location updates. Inexact. Updates may be more or less frequent.
+     * Handler para el hilo propio del servicio
+     */
+    private Handler mServiceHandler;
+
+    /**
+     * Intervalo de actualización de localización DESEADO
      */
     private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 5000;
 
     /**
-     * The fastest rate for active location updates. Updates will never be more frequent
-     * than this value.
+     * Ratio máximo de actualización de localización
      */
     private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2;
@@ -113,40 +109,48 @@ public class LocationUpdatesService extends Service {
     private NotificationManager mNotificationManager;
 
     /**
-     * Contains parameters used by {@link com.google.android.gms.location.FusedLocationProviderApi}.
+     * Fused Location API
+     */
+    private FusedLocationProviderClient mFusedLocationClient;
+    /**
+     * Parámetros de configuración en la creación del FusedLocation client
      */
     private LocationRequest mLocationRequest;
 
     /**
-     * Provides access to the Fused Location Provider API.
-     */
-    private FusedLocationProviderClient mFusedLocationClient;
-
-    /**
-     * Callback for changes in location.
+     * Callback para los cambios de localización
      */
     private LocationCallback mLocationCallback;
 
-    private Handler mServiceHandler;
-
     /**
-     * The current location.
+     * Última localización disponible
      */
     private Location mLocation;
-
     private TelephonyManager telephonyManager;
-
     private Path path;
+    private boolean requestingLocationUpdates;
 
     public Path getPath() {
         return this.path;
     }
 
-    public LocationUpdatesService() {
+    public boolean getRequestingLocationUpdates() {
+        return this.requestingLocationUpdates;
+    }
+
+    public SamplesService() {
     }
 
     @Override
     public void onCreate() {
+        // Con esto hacemos que el servicio corra en un hilo a parte
+        // porque normalmente un servicio corre en el mismo hilo que la actividad que se bindea
+        // (el hilo principal) y las llamadas a este serían bloqueantes
+        HandlerThread handlerThread = new HandlerThread(TAG);
+        handlerThread.start();
+        mServiceHandler = new Handler(handlerThread.getLooper());
+
+
         path = new Path(CoverageMapActivity.CIRCLE_RADIUS*2+1);
         telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -160,12 +164,10 @@ public class LocationUpdatesService extends Service {
             }
         };
 
+        // Inicialización del objeto location request
         createLocationRequest();
         getLastLocation();
 
-        HandlerThread handlerThread = new HandlerThread(TAG);
-        handlerThread.start();
-        mServiceHandler = new Handler(handlerThread.getLooper());
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         // Android O requires a Notification Channel.
@@ -196,16 +198,7 @@ public class LocationUpdatesService extends Service {
     }
 
     @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        mChangingConfiguration = true;
-    }
-
-    @Override
     public IBinder onBind(Intent intent) {
-        // Called when a client (MainActivity in case of this sample) comes to the foreground
-        // and binds with this service. The service should cease to be a foreground service
-        // when that happens.
         Log.i(TAG, "in onBind()");
         stopForeground(true);
         mChangingConfiguration = false;
@@ -227,9 +220,7 @@ public class LocationUpdatesService extends Service {
     public boolean onUnbind(Intent intent) {
         Log.i(TAG, "Last client unbound from service");
 
-        // Called when the last client (MainActivity in case of this sample) unbinds from this
-        // service. If this method is called due to a configuration change in MainActivity, we
-        // do nothing. Otherwise, we make this service a foreground service.
+        // Comprueba que la MainActivity esté bindeada
         if (!mChangingConfiguration && Utils.requestingLocationUpdates(this)) {
             Log.i(TAG, "Starting foreground service");
 
@@ -243,6 +234,13 @@ public class LocationUpdatesService extends Service {
         mServiceHandler.removeCallbacksAndMessages(null);
     }
 
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        mChangingConfiguration = true;
+    }
+
     /**
      * Makes a request for location updates. Note that in this sample we merely log the
      * {@link SecurityException}.
@@ -250,10 +248,11 @@ public class LocationUpdatesService extends Service {
     public void requestLocationUpdates() {
         Log.i(TAG, "Requesting location updates");
         Utils.setRequestingLocationUpdates(this, true);
-        startService(new Intent(getApplicationContext(), LocationUpdatesService.class));
+        startService(new Intent(getApplicationContext(), SamplesService.class));
         try {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                     mLocationCallback, Looper.myLooper());
+            requestingLocationUpdates = true;
         } catch (SecurityException unlikely) {
             Utils.setRequestingLocationUpdates(this, false);
             Log.e(TAG, "Lost location permission. Could not request updates. " + unlikely);
@@ -270,6 +269,7 @@ public class LocationUpdatesService extends Service {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
             Utils.setRequestingLocationUpdates(this, false);
             stopSelf();
+            requestingLocationUpdates = false;
         } catch (SecurityException unlikely) {
             Utils.setRequestingLocationUpdates(this, true);
             Log.e(TAG, "Lost location permission. Could not remove updates. " + unlikely);
@@ -280,7 +280,7 @@ public class LocationUpdatesService extends Service {
      * Returns the {@link NotificationCompat} used as part of the foreground service.
      */
     private Notification getNotification() {
-        Intent intent = new Intent(this, LocationUpdatesService.class);
+        Intent intent = new Intent(this, SamplesService.class);
 
         CharSequence text = Utils.getLocationText(mLocation);
 
@@ -303,7 +303,7 @@ public class LocationUpdatesService extends Service {
                 .setContentText(text)
                 .setContentTitle(Utils.getLocationTitle(this))
                 .setOngoing(true)
-                .setPriority(Notification.PRIORITY_HIGH)
+                .setPriority(NotificationManager.IMPORTANCE_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis());
@@ -344,8 +344,6 @@ public class LocationUpdatesService extends Service {
             // Notify anyone listening for broadcasts about the new location.
             Intent intent = new Intent(ACTION_BROADCAST);
             intent.putExtra(EXTRA_SAMPLE, newSample);
-            intent.putExtra(EXTRA_LOCATION, location);
-            intent.putExtra(EXTRA_SIGNAL_STRENGTH, signalStrength);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
 
             // Update notification content if running as a foreground service.
@@ -353,8 +351,6 @@ public class LocationUpdatesService extends Service {
                 mNotificationManager.notify(NOTIFICATION_ID, getNotification());
             }
         }
-
-
     }
 
     public Location getLocation() {
@@ -376,8 +372,8 @@ public class LocationUpdatesService extends Service {
      * clients, we don't need to deal with IPC.
      */
     public class LocalBinder extends Binder {
-        LocationUpdatesService getService() {
-            return LocationUpdatesService.this;
+        SamplesService getService() {
+            return SamplesService.this;
         }
     }
 

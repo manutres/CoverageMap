@@ -1,4 +1,4 @@
-package com.google.android.gms.location.sample.locationupdatesforegroundservice;
+package es.um.comov.p2;
 
 import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -12,6 +12,9 @@ import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
+
+import es.um.comov.p2.model.Path;
+import es.um.comov.p2.model.Sample;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -28,7 +31,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     private GoogleMap mMap;
 
     // A reference to the service used to get location updates.
-    private LocationUpdatesService mService = null;
+    private SamplesService mService = null;
 
     // Tracks the bound state of the service.
     private boolean mBound = false;
@@ -40,7 +43,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     private class MyReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Sample newSample = (Sample) intent.getSerializableExtra(LocationUpdatesService.EXTRA_SAMPLE);
+            Sample newSample = (Sample) intent.getSerializableExtra(SamplesService.EXTRA_SAMPLE);
             if (newSample != null) {
                 mMap.addCircle(getSampleCircle(newSample));
 
@@ -60,7 +63,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            LocationUpdatesService.LocalBinder binder = (LocationUpdatesService.LocalBinder) service;
+            SamplesService.LocalBinder binder = (SamplesService.LocalBinder) service;
             mService = binder.getService();
             mBound = true;
         }
@@ -77,7 +80,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         super.onCreate(savedInstanceState);
         path = new Path(CIRCLE_RADIUS*2 +1);
         myReceiver = new MyReceiver();
-        bindService(new Intent(this, LocationUpdatesService.class), mServiceConnection,
+        bindService(new Intent(this, SamplesService.class), mServiceConnection,
                 Context.BIND_AUTO_CREATE);
 
         setContentView(R.layout.activity_coverage_map);
@@ -91,7 +94,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     protected void onResume() {
         super.onResume();
         LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver,
-                new IntentFilter(LocationUpdatesService.ACTION_BROADCAST));
+                new IntentFilter(SamplesService.ACTION_BROADCAST));
     }
 
     @Override
@@ -165,4 +168,5 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         }
 
     }
+
 }
