@@ -76,30 +76,33 @@ public class SamplesService extends Service {
     static final String EXTRA_SAMPLE = PACKAGE_NAME + ".sample";
     private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
 
+    /**
+     * Clase que se devuelve a las actividades que se bindean con el servicio.
+     * En este caso de volvemos el servicio al completo, por lo que las actividades que se enlancen
+     * con el servicio tendrán acceso a todos los métodos públicos de este
+     */
+    public class LocalBinder extends Binder {
+        SamplesService getService() {
+            return SamplesService.this;
+        }
+    }
     private final IBinder mBinder = new LocalBinder();
 
-    /**
-     * Handler para el hilo propio del servicio
-     */
+    // Handler para el hilo propio del servicio
     private Handler mServiceHandler;
 
-    /**
-     * Intervalo de actualización de localización DESEADO
-     */
+    // Intervalo de actualización de localización DESEADO
     private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 5000;
 
-    /**
-     * Ratio máximo de actualización de localización
-     */
+
+    // Ratio máximo de actualización de localización
     private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2;
 
-    /**
-     * The identifier for the notification displayed for the foreground service.
-     */
+    // Identificador de las notificaciones mostradas en el modo primer plano(foreground)
     private static final int NOTIFICATION_ID = 12345678;
 
-    /**
+    /*
      * Used to check whether the bound activity has really gone away and not unbound as part of an
      * orientation change. We create a foreground service notification only if the former takes
      * place.
@@ -108,23 +111,16 @@ public class SamplesService extends Service {
 
     private NotificationManager mNotificationManager;
 
-    /**
-     * Fused Location API
-     */
+    // Fused Location API
     private FusedLocationProviderClient mFusedLocationClient;
-    /**
-     * Parámetros de configuración en la creación del FusedLocation client
-     */
+
+    //Parámetros de configuración en la creación del FusedLocation client
     private LocationRequest mLocationRequest;
 
-    /**
-     * Callback para los cambios de localización
-     */
+    // Callback para manejar los cambios de localización
     private LocationCallback mLocationCallback;
 
-    /**
-     * Última localización disponible
-     */
+    // Última localización disponible
     private Location mLocation;
     private TelephonyManager telephonyManager;
     private Path path;
@@ -168,14 +164,14 @@ public class SamplesService extends Service {
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        // Android O requires a Notification Channel.
+        // Android O requiere canales de notificacion.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = getString(R.string.app_name);
             // Create the channel for the notification
             NotificationChannel mChannel =
                     new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
 
-            // Set the Notification Channel for the Notification Manager.
+            // Crea el canal de notificaciones para el manejador de notificaciones
             mNotificationManager.createNotificationChannel(mChannel);
         }
     }
@@ -239,6 +235,29 @@ public class SamplesService extends Service {
         mChangingConfiguration = true;
     }
 
+
+    private void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    private void getLastLocation() {
+        try {
+            mFusedLocationClient.getLastLocation()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && task.getResult() != null) {
+                            mLocation = task.getResult();
+                        } else {
+                            Log.w(TAG, "Failed to get location.");
+                        }
+                    });
+        } catch (SecurityException unlikely) {
+            Log.e(TAG, "Lost location permission." + unlikely);
+        }
+    }
+
     /**
      * Hace la petición para obtener actualizaciones periódicas de localización
      */
@@ -269,65 +288,6 @@ public class SamplesService extends Service {
         }
     }
 
-    private void getLastLocation() {
-        try {
-            mFusedLocationClient.getLastLocation()
-                    .addOnCompleteListener(new OnCompleteListener<Location>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Location> task) {
-                            if (task.isSuccessful() && task.getResult() != null) {
-                                mLocation = task.getResult();
-                            } else {
-                                Log.w(TAG, "Failed to get location.");
-                            }
-                        }
-                    });
-        } catch (SecurityException unlikely) {
-            Log.e(TAG, "Lost location permission." + unlikely);
-        }
-    }
-
-    private void onNewLocation(Location location, int signalStrength) {
-        Log.i(TAG, "New location: " + location);
-
-        mLocation = location;
-
-        Sample newSample = new Sample(location, signalStrength);
-        if(this.path.addSample(newSample)) {
-            // Notify anyone listening for broadcasts about the new location.
-            Intent intent = new Intent(ACTION_BROADCAST);
-            intent.putExtra(EXTRA_SAMPLE, newSample);
-            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
-
-            // Update notification content if running as a foreground service.
-            if (serviceIsRunningInForeground(this)) {
-                mNotificationManager.notify(NOTIFICATION_ID, getNotification());
-            }
-        }
-    }
-
-    /**
-     * Instancia el objeto mLocationRequest, que sirve de configuración a la hora de solicitar
-     * la localización con el FusedLocationClient
-     */
-    private void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
-        mLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-    }
-
-    /**
-     * Clase que se devuelve a las actividades que se bindean con el servicio.
-     * En este caso de volvemos el servicio al completo, por lo que las actividades que se enlancen
-     * con el servicio tendrán acceso a todos los métodos públicos de este
-     */
-    public class LocalBinder extends Binder {
-        SamplesService getService() {
-            return SamplesService.this;
-        }
-    }
-
     /**
      * Metodo para consultar si el servicio se encuentra en modo primer plano (foreground)
      * El servicio se encontrará en este modo si no hay ninguna actividad enlazada (bind) con él
@@ -346,6 +306,7 @@ public class SamplesService extends Service {
         return false;
     }
 
+    
     private static int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
         int strength = 0;
         int cont = 0;
@@ -376,6 +337,30 @@ public class SamplesService extends Service {
         }
         return strength/cont;
     }
+
+    /**
+     * Manejador para los eventos de nueva localización
+     */
+    private void onNewLocation(Location location, int signalStrength) {
+        Log.i(TAG, "New location: " + location);
+
+        mLocation = location;
+
+        Sample newSample = new Sample(location, signalStrength);
+        if(this.path.addSample(newSample)) {
+            // Notifica a todos los que se hayan suscrito al broadcast
+            Intent intent = new Intent(ACTION_BROADCAST);
+            intent.putExtra(EXTRA_SAMPLE, newSample);
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+
+            // Actualiza el contenido de la tarjeta de notificación si
+            // el servicio está funcionando en modo primer plano (foreground)
+            if (serviceIsRunningInForeground(this)) {
+                mNotificationManager.notify(NOTIFICATION_ID, getNotification());
+            }
+        }
+    }
+
 
     /**
      * Gestión de las notificaciones para el modo primer plano (foreground) del servicio
