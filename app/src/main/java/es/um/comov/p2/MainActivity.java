@@ -51,6 +51,8 @@ public class MainActivity extends AppCompatActivity implements
     private Button requestLocationUpdatesButton;
     private Button removeLocationUpdatesButton;
 
+    private String modeNetwork;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,12 +75,15 @@ public class MainActivity extends AppCompatActivity implements
         PreferenceManager.getDefaultSharedPreferences(this)
                 .registerOnSharedPreferenceChangeListener(this);
 
-        requestLocationUpdatesButton = (Button) findViewById(R.id.request_location_updates_button);
+        //requestLocationUpdatesButton = (Button) findViewById(R.id.request_location_updates_button);
         removeLocationUpdatesButton = (Button) findViewById(R.id.remove_location_updates_button);
 
         // Aquí la actividad se enlaza con el servicio
-        bindService(new Intent(this, SamplesService.class), mServiceConnection,
-                Context.BIND_AUTO_CREATE);
+        Intent intent = new Intent(this, SamplesService.class);
+        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+
+        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
+        setButtonsState(Utils.requestingLocationUpdates(this));
 
     }
 
@@ -87,8 +92,6 @@ public class MainActivity extends AppCompatActivity implements
         super.onResume();
         LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver,
                 new IntentFilter(SamplesService.ACTION_BROADCAST));
-        // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
-        setButtonsState(Utils.requestingLocationUpdates(this));
     }
 
     @Override
@@ -112,10 +115,10 @@ public class MainActivity extends AppCompatActivity implements
 
     private void setButtonsState(boolean requestingLocationUpdates) {
         if (requestingLocationUpdates) {
-            requestLocationUpdatesButton.setEnabled(false);
+            //requestLocationUpdatesButton.setEnabled(false);
             removeLocationUpdatesButton.setEnabled(true);
         } else {
-            requestLocationUpdatesButton.setEnabled(true);
+            //requestLocationUpdatesButton.setEnabled(true);
             removeLocationUpdatesButton.setEnabled(false);
         }
     }
@@ -147,29 +150,50 @@ public class MainActivity extends AppCompatActivity implements
     }
 
 
-    /**
-     * MANEJADORES Y HOOKS
-     */
-    public void onRequestLocationUpdatesButton(View v) {
-        statusCheck();
-        if (!permissionService.checkPermissions()) {
-            permissionService.requestPermissions();
-        } else {
-            samplesService.requestLocationUpdates();
-        }
-    }
 
     public void onRemoveLocationUpdatesButton(View v) {
         samplesService.removeLocationUpdates();
     }
 
-    public void onToMapButton(View v) {
-        Intent intent = new Intent(this, CoverageMapActivity.class);
-        startActivity(intent);
+    public void onClick2g(View v) {
+        statusCheck();
+        if (!permissionService.checkPermissions()) {
+            permissionService.requestPermissions();
+        } else {
+            this.modeNetwork = "2g";
+            samplesService.requestLocationUpdates(this.modeNetwork);
+            Intent intent = new Intent(this, CoverageMapActivity.class);
+            startActivity(intent);
+        }
     }
 
-    public void onNetworkSettingsButton(View v) {
-        startActivity(new Intent(Settings.ACTION_DATA_ROAMING_SETTINGS));
+    public void onClick3g(View v) {
+        statusCheck();
+        if (!permissionService.checkPermissions()) {
+            permissionService.requestPermissions();
+        } else {
+            this.modeNetwork = "3g";
+            samplesService.requestLocationUpdates(this.modeNetwork);
+            Intent intent = new Intent(this, CoverageMapActivity.class);
+            startActivity(intent);
+        }
+    }
+
+    public void onClick4g(View v) {
+        statusCheck();
+        if (!permissionService.checkPermissions()) {
+            permissionService.requestPermissions();
+        } else {
+            this.modeNetwork = "4g";
+            samplesService.requestLocationUpdates(this.modeNetwork);
+            Intent intent = new Intent(this, CoverageMapActivity.class);
+            startActivity(intent);
+        }
+    }
+
+    public void onClickSettings(View v) {
+        Intent intent = new Intent(Settings. ACTION_NETWORK_OPERATOR_SETTINGS);
+        startActivity(intent);
     }
 
     /**
@@ -193,7 +217,7 @@ public class MainActivity extends AppCompatActivity implements
         public void onReceive(Context context, Intent intent) {
             Sample newSample = (Sample) intent.getSerializableExtra(SamplesService.EXTRA_SAMPLE);
             if (newSample != null) {
-                Toast.makeText(MainActivity.this, Utils.getLocationText(newSample.getLocation()) + ", " + Integer.toString(newSample.getSignal()),
+                Toast.makeText(MainActivity.this, Utils.getLocationText(newSample.getLocation()),
                         Toast.LENGTH_SHORT).show();
             }
         }
@@ -232,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements
                 Log.i(TAG, "User interaction was cancelled.");
             } else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission was granted.
-                samplesService.requestLocationUpdates();
+                samplesService.requestLocationUpdates(this.modeNetwork);
             } else {
                 // Permission denied.
                 setButtonsState(false);

@@ -5,6 +5,7 @@
     android:id="@+id/map"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:keepScreenOn="true"
     tools:context="es.um.comov.p2.CoverageMapActivity">
 
     <fragment
@@ -12,6 +13,7 @@
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:orientation="vertical"
         map:layout_constraintBottom_toBottomOf="parent"
         map:layout_constraintEnd_toEndOf="parent"
         map:layout_constraintStart_toStartOf="parent"

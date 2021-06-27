@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Location Updates ForegroundService</string>
+    <string name="btnNetwork">Ajustes de red</string>
+    <string name="btn4g">Red LTE - 4G</string>
+    <string name="btn3g">Red WCDMA - 3G</string>
+    <string name="btn2g">Red GSM - 2G</string>
+    <string name="title_activity_coverage_map">Mapa</string>
+    <string name="location_updated">Actualización de localización</string>
+    <string name="remove_location_updates">Eliminar actualización de localización</string>
+    <string name="request_location_updates">Actualizar localización</string>
+    <string name="ok">Ok</string>
+    <string name="settings">Ajustes</string>
+    <string name="permission_denied_explanation">Permisos denegados</string>
+    <string name="permission_rationale">Permisos de localización necesarios</string>
+    <string name="location_updates_label">Actualización de localización</string>
+    <string name="location_unknown">Localización desconocida</string>
+    <string name="launch_activity">Abrir actividad</string>
+</resources>

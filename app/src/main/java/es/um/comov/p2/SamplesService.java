@@ -48,6 +48,7 @@ import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -71,10 +72,13 @@ public class SamplesService extends Service {
 
     private static final String TAG = SamplesService.class.getSimpleName();
 
+    private static final int DISTANCE_BETWEEN_CIRCLES = CoverageMapActivity.CIRCLE_RADIUS * 2 + 1;
+
     private static final String CHANNEL_ID = "channel_01";
     static final String ACTION_BROADCAST = PACKAGE_NAME + ".broadcast";
     static final String EXTRA_SAMPLE = PACKAGE_NAME + ".sample";
     private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
+    private String modeNetwork;
 
     /**
      * Clase que se devuelve a las actividades que se bindean con el servicio.
@@ -145,7 +149,7 @@ public class SamplesService extends Service {
         mServiceHandler = new Handler(handlerThread.getLooper());
 
 
-        path = new Path(CoverageMapActivity.CIRCLE_RADIUS*2+1);
+        path = new Path(DISTANCE_BETWEEN_CIRCLES);
         telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -179,6 +183,7 @@ public class SamplesService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Service started");
+
         boolean startedFromNotification = intent.getBooleanExtra(EXTRA_STARTED_FROM_NOTIFICATION,
                 false);
 
@@ -225,9 +230,7 @@ public class SamplesService extends Service {
 
     @Override
     public void onDestroy() {
-        Utils.setRequestingLocationUpdates(this, false);
         mServiceHandler.removeCallbacksAndMessages(null);
-        super.onDestroy();
     }
 
 
@@ -263,7 +266,11 @@ public class SamplesService extends Service {
     /**
      * Hace la petición para obtener actualizaciones periódicas de localización
      */
-    public void requestLocationUpdates() {
+    public void requestLocationUpdates(String network) {
+        if(!TextUtils.equals(network, modeNetwork)) {
+            modeNetwork = network;
+            this.path = new Path(DISTANCE_BETWEEN_CIRCLES);
+        }
         Utils.setRequestingLocationUpdates(this, true);
         startService(new Intent(getApplicationContext(), SamplesService.class));
         try {
@@ -309,31 +316,32 @@ public class SamplesService extends Service {
     }
 
 
-    private static int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
+    private  int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
         int strength = 0;
         int cont = 0;
+        Log.d(TAG, "Recibo modo de red " + modeNetwork);
         List<CellInfo> cellInfos = telephonyManager.getAllCellInfo();
         if(cellInfos != null) {
             for (CellInfo cell: cellInfos) {
                 if (cell.isRegistered()) {
                     cont++;
-                    if (cell instanceof CellInfoWcdma) {
+                    if (cell instanceof CellInfoWcdma && TextUtils.equals(modeNetwork, "3g")) {
+                        Log.d(TAG, "Modo de red 3g");
                         CellInfoWcdma cellInfoWcdma = (CellInfoWcdma) cell;
                         CellSignalStrengthWcdma cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                         strength += cellSignalStrengthWcdma.getLevel();
-                    } else if (cell instanceof CellInfoGsm) {
+                    } else if (cell instanceof CellInfoGsm && TextUtils.equals(modeNetwork, "2g")) {
+                        Log.d(TAG, "Modo de red 2g");
                         CellInfoGsm cellInfogsm = (CellInfoGsm) cell;
                         CellSignalStrengthGsm cellSignalStrengthGsm = cellInfogsm.getCellSignalStrength();
                         strength += cellSignalStrengthGsm.getLevel();
-                    } else if (cell instanceof CellInfoLte) {
+                    } else if (cell instanceof CellInfoLte && TextUtils.equals(modeNetwork, "4g")) {
+                        Log.d(TAG, "Modo de red 4g");
                         CellInfoLte cellInfoLte = (CellInfoLte) cell;
                         CellSignalStrengthLte cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
                         strength += cellSignalStrengthLte.getLevel();
-                    } else if (cell instanceof CellInfoCdma) {
-                        CellInfoCdma cellInfoCdma = (CellInfoCdma) cell;
-                        CellSignalStrengthCdma cellSignalStrengthCdma = cellInfoCdma.getCellSignalStrength();
-                        strength += cellSignalStrengthCdma.getLevel();
                     }
+                    else strength=0;
                 }
             }
         }
@@ -349,6 +357,7 @@ public class SamplesService extends Service {
         mLocation = location;
 
         Sample newSample = new Sample(location, signalStrength);
+
         if(this.path.addSample(newSample)) {
             // Notifica a todos los que se hayan suscrito al broadcast
             Intent intent = new Intent(ACTION_BROADCAST);

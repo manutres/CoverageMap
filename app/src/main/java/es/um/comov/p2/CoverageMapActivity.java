@@ -1,14 +1,17 @@
 package es.um.comov.p2;
 
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -23,13 +26,15 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 
 public class CoverageMapActivity extends FragmentActivity implements OnMapReadyCallback {
 
     public static final int CIRCLE_RADIUS = 3;
-    private static final int ZOOM = 18;
+    private static final int ZOOM = 15;
 
     private GoogleMap mMap;
 
@@ -42,12 +47,18 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     // The BroadcastReceiver used to listen from broadcasts from the service.
     private Path path;
 
+    private static String modeNetwork;
+
+    Marker userLocationMarker;
+
     private class MyReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
+            showPosition();
             Sample newSample = (Sample) intent.getSerializableExtra(SamplesService.EXTRA_SAMPLE);
             if (newSample != null) {
                 mMap.addCircle(getSampleCircle(newSample));
+
 
                 // movemos la camara solo si es el primer sample
                 if(mService.getPath().getSamples().size() == 1) {
@@ -56,6 +67,16 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
                 }
             }
         }
+    }
+
+    private void showPosition() {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            }, 0);
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
     }
 
     private MyReceiver myReceiver;
@@ -92,6 +113,9 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map2);
         mapFragment.getMapAsync(this);
+
+        Intent intent = getIntent();
+        modeNetwork = intent.getStringExtra("network");
     }
 
     @Override
@@ -113,12 +137,13 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
             // Unbind from the service. This signals to the service that this activity is no longer
             // in the foreground, and the service can respond by promoting itself to a foreground
             // service.
-
             unbindService(mServiceConnection);
             mBound = false;
         }
+
         super.onStop();
     }
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -147,6 +172,9 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         if(signalLevel >= 3 && signalLevel <= 4) {
             return Color.rgb(69,255,66);
         }
+        if(signalLevel == 0) {
+            return Color.rgb(255,0,0);
+        }
         return 0;
     }
 
@@ -156,6 +184,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
      * @return
      */
     private CircleOptions getSampleCircle(Sample sample) {
+        String network = modeNetwork;
         return new CircleOptions()
                 .center(sample.getLatLng())
                 .radius(CIRCLE_RADIUS)
