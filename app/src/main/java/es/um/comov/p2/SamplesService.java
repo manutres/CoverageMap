@@ -312,7 +312,12 @@ public class SamplesService extends Service {
                 }
             }
         }
-        return strength/cont;
+
+        // Para el emulador
+        if(cont > 0) {
+            return strength/cont;
+        }
+        return 0;
     }
 
     /**
