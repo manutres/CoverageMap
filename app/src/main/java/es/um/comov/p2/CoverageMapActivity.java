@@ -1,10 +1,5 @@
 package es.um.comov.p2;
 
-import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -12,25 +7,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.view.View;
-import android.widget.Button;
 
-import es.um.comov.p2.model.Path;
-import es.um.comov.p2.model.Sample;
+import androidx.fragment.app.FragmentActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CircleOptions;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import es.um.comov.p2.model.Path;
+import es.um.comov.p2.model.Sample;
 
 public class CoverageMapActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -44,13 +35,6 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
 
     // Tracks the bound state of the service.
     private boolean mBound = false;
-
-    // The BroadcastReceiver used to listen from broadcasts from the service.
-    private Path path;
-
-    private static String modeNetwork;
-
-    Marker userLocationMarker;
 
     private class MyReceiver extends BroadcastReceiver {
         @SuppressLint("MissingPermission")
@@ -93,7 +77,6 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        path = new Path(CIRCLE_RADIUS*2 +1);
         myReceiver = new MyReceiver();
         bindService(new Intent(this, SamplesService.class), mServiceConnection,
                 Context.BIND_AUTO_CREATE);
@@ -107,7 +90,6 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         mapFragment.getMapAsync(this);
 
         Intent intent = getIntent();
-        modeNetwork = intent.getStringExtra("network");
     }
 
     @Override
@@ -163,12 +145,9 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     }
 
     /**
-     * Function for obtaining a Sample circle given a Sample
-     * @param sample
-     * @return
+     * Función que devuelve un circulo dada una muestra (Sample)
      */
     private CircleOptions getSampleCircle(Sample sample) {
-        String network = modeNetwork;
         return new CircleOptions()
                 .center(sample.getLatLng())
                 .radius(CIRCLE_RADIUS)
@@ -177,9 +156,9 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     }
 
     /**
-     * Draw a path of circles given a Path
-     * @param path object containing the service path
+     * Función que dibuja un camino de circulos dado un camino (Path)
      */
+    @SuppressLint("MissingPermission")
     private void drawPath(Path path) {
         for(Sample sample: path.getSamples()) {
             mMap.addCircle(getSampleCircle(sample));
@@ -189,6 +168,7 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
         if(!path.getSamples().isEmpty()) {
             mMap.moveCamera(CameraUpdateFactory.newLatLng(path.getLastSample().getLatLng()));
             mMap.animateCamera(CameraUpdateFactory.zoomTo(ZOOM));
+            mMap.setMyLocationEnabled(true);
         }
 
     }

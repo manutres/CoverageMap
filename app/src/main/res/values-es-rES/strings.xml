@@ -7,7 +7,7 @@
     <string name="btn2g">Red GSM - 2G</string>
     <string name="title_activity_coverage_map">Mapa</string>
     <string name="location_updated">Actualización de localización</string>
-    <string name="remove_location_updates">Finalizar servicio de muestras</string>
+    <string name="remove_location_updates">Finalizar muestreo</string>
     <string name="ok">Ok</string>
     <string name="settings">Ajustes</string>
     <string name="permission_denied_explanation">Permisos denegados</string>
@@ -15,4 +15,5 @@
     <string name="location_updates_label">Actualización de localización</string>
     <string name="location_unknown">Localización desconocida</string>
     <string name="launch_activity">Abrir actividad</string>
+    <string name="notification_title">Última muestra</string>
 </resources>

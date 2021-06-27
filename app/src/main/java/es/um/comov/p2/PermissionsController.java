@@ -1,6 +1,5 @@
 package es.um.comov.p2;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.util.Log;
@@ -11,12 +10,12 @@ import com.google.android.material.snackbar.Snackbar;
 
 public class PermissionsController {
 
-    private static String TAG = PermissionsController.class.getSimpleName();
+    private static final String TAG = PermissionsController.class.getSimpleName();
 
     // For checking runtime permissions
     public static final int REQUEST_PERMISSIONS_REQUEST_CODE = 101;
 
-    private Activity activity;
+    private final Activity activity;
 
     public PermissionsController(Activity activity) {
         this.activity = activity;

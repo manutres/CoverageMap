@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Seteamos el estado del botón segun esté el servicio lanzando actualizaciones de localizacio o no
         if(mBound) {
-            setButtonsState(samplesService.getRequestingLocationUpdates());
+            setButtonsState(samplesService.isRequestingLocationUpdates());
         }
 
     }
@@ -166,9 +166,9 @@ public class MainActivity extends AppCompatActivity {
             SamplesService.LocalBinder binder = (SamplesService.LocalBinder) service;
             samplesService = binder.getService();
             mBound = true;
-            setButtonsState(samplesService.getRequestingLocationUpdates());
+            setButtonsState(samplesService.isRequestingLocationUpdates());
             // Siempre que nos conectemos al servicio de samples hay que comprobar que tengamos permisos
-            if (samplesService.getRequestingLocationUpdates()) {
+            if (samplesService.isRequestingLocationUpdates()) {
                 if (!permissionService.checkPermissions(LOCATION_AND_TELEPHONY_PERMISSIONS)) {
                     permissionService.requestPermissions(LOCATION_AND_TELEPHONY_PERMISSIONS);
                 }

@@ -18,4 +18,5 @@
     <string name="btn3g">WCDMA Network - 3G</string>
     <string name="btn4g">LTE Network - 4G</string>
     <string name="btnNetwork">Network Settings</string>
+    <string name="notification_title">Última muestra</string>
 </resources>

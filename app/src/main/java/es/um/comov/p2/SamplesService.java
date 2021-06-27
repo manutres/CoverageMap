@@ -1,19 +1,3 @@
-/**
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package es.um.comov.p2;
 
 import android.annotation.SuppressLint;
@@ -28,22 +12,18 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.telephony.CellInfo;
-import android.telephony.CellInfoCdma;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
 import android.telephony.CellInfoWcdma;
-import android.telephony.CellSignalStrengthCdma;
 import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthWcdma;
@@ -60,8 +40,6 @@ import com.google.android.gms.location.LocationServices;
 import es.um.comov.p2.model.Path;
 import es.um.comov.p2.model.Sample;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 
 import java.util.List;
 
@@ -80,7 +58,7 @@ public class SamplesService extends Service {
     private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
     private String modeNetwork;
     private boolean requestingLocationUpdates;
-    public boolean getRequestingLocationUpdates() {
+    public boolean isRequestingLocationUpdates() {
         return requestingLocationUpdates;
     }
 
@@ -110,13 +88,6 @@ public class SamplesService extends Service {
     // Identificador de las notificaciones mostradas en el modo primer plano(foreground)
     private static final int NOTIFICATION_ID = 12345678;
 
-    /*
-     * Used to check whether the bound activity has really gone away and not unbound as part of an
-     * orientation change. We create a foreground service notification only if the former takes
-     * place.
-     */
-    private boolean mChangingConfiguration = false;
-
     private NotificationManager mNotificationManager;
 
     // Fused Location API
@@ -129,15 +100,12 @@ public class SamplesService extends Service {
     private LocationCallback mLocationCallback;
 
     // Última localización disponible
-    private Location mLocation;
+    private Location lastLocation;
     private TelephonyManager telephonyManager;
     private Path path;
 
     public Path getPath() {
         return this.path;
-    }
-    public Location getLocation() {
-        return this.mLocation;
     }
 
     public SamplesService() {
@@ -173,15 +141,13 @@ public class SamplesService extends Service {
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         // Android O requiere canales de notificacion.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = getString(R.string.app_name);
-            // Create the channel for the notification
-            NotificationChannel mChannel =
-                    new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
+        CharSequence name = getString(R.string.app_name);
+        // Create the channel for the notification
+        NotificationChannel mChannel =
+                new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
 
-            // Crea el canal de notificaciones para el manejador de notificaciones
-            mNotificationManager.createNotificationChannel(mChannel);
-        }
+        // Crea el canal de notificaciones para el manejador de notificaciones
+        mNotificationManager.createNotificationChannel(mChannel);
     }
 
     @Override
@@ -204,7 +170,6 @@ public class SamplesService extends Service {
     public IBinder onBind(Intent intent) {
         Log.i(TAG, "in onBind()");
         stopForeground(true);
-        mChangingConfiguration = false;
         return mBinder;
     }
 
@@ -215,7 +180,6 @@ public class SamplesService extends Service {
         // service when that happens.
         Log.i(TAG, "in onRebind()");
         stopForeground(true);
-        mChangingConfiguration = false;
         super.onRebind(intent);
     }
 
@@ -224,7 +188,7 @@ public class SamplesService extends Service {
         Log.i(TAG, "Last client unbound from service");
 
         // Comprueba que la MainActivity esté bindeada
-        if (!mChangingConfiguration && requestingLocationUpdates) {
+        if (requestingLocationUpdates) {
             Log.i(TAG, "Starting foreground service");
 
             startForeground(NOTIFICATION_ID, getNotification());
@@ -241,7 +205,6 @@ public class SamplesService extends Service {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        mChangingConfiguration = true;
     }
 
 
@@ -257,7 +220,7 @@ public class SamplesService extends Service {
             mFusedLocationClient.getLastLocation()
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful() && task.getResult() != null) {
-                            mLocation = task.getResult();
+                            lastLocation = task.getResult();
                         } else {
                             Log.w(TAG, "Failed to get location.");
                         }
@@ -358,7 +321,7 @@ public class SamplesService extends Service {
     private void onNewLocation(Location location, int signalStrength) {
         Log.i(TAG, "New location: " + location);
 
-        mLocation = location;
+        lastLocation = location;
 
         Sample newSample = new Sample(location, signalStrength);
 
@@ -376,10 +339,10 @@ public class SamplesService extends Service {
         }
     }
 
-
-    /**
-     * Gestión de las notificaciones para el modo primer plano (foreground) del servicio
-     */
+    private static String getSampleText(Sample sample) {
+        return sample == null ? "No sample" :
+                "Lat: " + sample.getLocation().getLatitude() + ", Lng: " + sample.getLocation().getLongitude() + ", Signal: " + sample.getSignal();
+    }
 
     /**
      * Crea la notificación que se le muestra al usuario cuando el servicio se encuentra
@@ -388,7 +351,7 @@ public class SamplesService extends Service {
     private Notification getNotification() {
         Intent intent = new Intent(this, SamplesService.class);
 
-        CharSequence text = Utils.getLocationText(mLocation);
+        CharSequence text = getSampleText(this.path.getLastSample());
 
         // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
         intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
@@ -407,17 +370,14 @@ public class SamplesService extends Service {
                 .addAction(R.drawable.ic_cancel, getString(R.string.remove_location_updates),
                         servicePendingIntent)
                 .setContentText(text)
-                .setContentTitle(Utils.getLocationTitle(this))
+                .setContentTitle(getString(R.string.notification_title))
                 .setOngoing(true)
                 .setPriority(NotificationManager.IMPORTANCE_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis());
 
-        // Set the Channel ID for Android O.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setChannelId(CHANNEL_ID); // Channel ID
-        }
+        builder.setChannelId(CHANNEL_ID);
 
         return builder.build();
     }
