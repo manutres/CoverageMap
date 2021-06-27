@@ -34,7 +34,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 public class CoverageMapActivity extends FragmentActivity implements OnMapReadyCallback {
 
     public static final int CIRCLE_RADIUS = 3;
-    private static final int ZOOM = 15;
+    private static final int ZOOM = 18;
 
     private GoogleMap mMap;
 
@@ -149,14 +149,6 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         drawPath(mService.getPath());
-    }
-
-    public void onCenterMapButton(View v) {
-        Sample lastSample = mService.getPath().getLastSample();
-        if(lastSample != null) {
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(lastSample.getLatLng()));
-            mMap.animateCamera(CameraUpdateFactory.zoomTo(ZOOM));
-        }
     }
 
     private int getSignalColor(int signalLevel) {
