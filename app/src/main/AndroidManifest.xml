@@ -26,8 +26,11 @@
 
         <activity
             android:name="es.um.comov.p2.CoverageMapActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_coverage_map"></activity>
-        <activity android:name="es.um.comov.p2.MainActivity">
+        <activity android:name="es.um.comov.p2.MainActivity"
+            android:screenOrientation="portrait"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

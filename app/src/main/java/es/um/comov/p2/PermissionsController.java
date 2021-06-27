@@ -1,6 +1,5 @@
 package es.um.comov.p2;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.util.Log;
@@ -11,51 +10,59 @@ import com.google.android.material.snackbar.Snackbar;
 
 public class PermissionsController {
 
-    private static String TAG = PermissionsController.class.getSimpleName();
+    private static final String TAG = PermissionsController.class.getSimpleName();
 
     // For checking runtime permissions
     public static final int REQUEST_PERMISSIONS_REQUEST_CODE = 101;
 
-    private Activity activity;
+    private final Activity activity;
 
     public PermissionsController(Activity activity) {
         this.activity = activity;
     }
 
-    public boolean checkPermissions() {
-        return  PackageManager.PERMISSION_GRANTED == ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.ACCESS_FINE_LOCATION) + ActivityCompat.checkSelfPermission(activity,
-                Manifest.permission.READ_PHONE_STATE);
+    public boolean checkPermissions(String[] permissions) {
+        for(String iterator: permissions) {
+            if(PackageManager.PERMISSION_GRANTED != ActivityCompat.checkSelfPermission(activity,
+                    iterator)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    public void requestPermissions() {
-        boolean shouldProvideRationale =
-                ActivityCompat.shouldShowRequestPermissionRationale(activity,
-                        Manifest.permission.ACCESS_FINE_LOCATION ) && ActivityCompat.shouldShowRequestPermissionRationale(activity,
-                        Manifest.permission.READ_PHONE_STATE);
+    // Función que dados unos permisos devuelve si es necesario motrar un aviso al usuario
+    // explicando por que son necesarios los permisos (Rationale)
+    public boolean shouldProvideRationale(String[] permissions) {
+        for(String iterator: permissions) {
+            if(!ActivityCompat.shouldShowRequestPermissionRationale(activity,
+                    iterator )) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        // Provide an additional rationale to the user. This would happen if the user denied the
-        // request previously, but didn't check the "Don't ask again" checkbox.
-        if (shouldProvideRationale) {
+    public void requestPermissions(String[] permissions) {
+        // Comprobamos si es necesario mostrar el rationale al usuario
+        if (shouldProvideRationale(permissions)) {
             Log.i(TAG, "Displaying permission rationale to provide additional context.");
             Snackbar.make(
                     activity.findViewById(R.id.activity_main),
                     R.string.permission_rationale,
                     Snackbar.LENGTH_INDEFINITE)
                     .setAction(R.string.ok, view -> {
-                        // Request permission
+                        // Aquí es ddonde se realiza la petición de permisos
                         ActivityCompat.requestPermissions(activity,
-                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_PHONE_STATE},
+                                permissions,
                                 REQUEST_PERMISSIONS_REQUEST_CODE);
                     })
                     .show();
         } else {
             Log.i(TAG, "Requesting permission");
-            // Request permission. It's possible this can be auto answered if device policy
-            // sets the permission in a given state or the user denied the permission
-            // previously and checked "Never ask again".
+            // Aquí entrariamos si el usuario ha marcado la casilla de no volver a mostrar
             ActivityCompat.requestPermissions(activity,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_PHONE_STATE},
+                    permissions,
                     REQUEST_PERMISSIONS_REQUEST_CODE);
         }
     }

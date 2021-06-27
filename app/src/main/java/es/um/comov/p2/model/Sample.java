@@ -10,6 +10,7 @@ public class Sample implements Serializable {
 
     private Location location;
     private int signal;
+    private static String modeNetwork;
 
     public Sample(){
     }

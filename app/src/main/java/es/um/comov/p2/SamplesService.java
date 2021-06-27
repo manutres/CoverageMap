@@ -1,19 +1,3 @@
-/**
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package es.um.comov.p2;
 
 import android.annotation.SuppressLint;
@@ -28,26 +12,23 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.telephony.CellInfo;
-import android.telephony.CellInfoCdma;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
 import android.telephony.CellInfoWcdma;
-import android.telephony.CellSignalStrengthCdma;
 import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -59,8 +40,6 @@ import com.google.android.gms.location.LocationServices;
 import es.um.comov.p2.model.Path;
 import es.um.comov.p2.model.Sample;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 
 import java.util.List;
 
@@ -71,10 +50,17 @@ public class SamplesService extends Service {
 
     private static final String TAG = SamplesService.class.getSimpleName();
 
+    private static final int DISTANCE_BETWEEN_CIRCLES = CoverageMapActivity.CIRCLE_RADIUS * 2 + 1;
+
     private static final String CHANNEL_ID = "channel_01";
     static final String ACTION_BROADCAST = PACKAGE_NAME + ".broadcast";
     static final String EXTRA_SAMPLE = PACKAGE_NAME + ".sample";
     private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
+    private String modeNetwork;
+    private boolean requestingLocationUpdates;
+    public boolean isRequestingLocationUpdates() {
+        return requestingLocationUpdates;
+    }
 
     /**
      * Clase que se devuelve a las actividades que se bindean con el servicio.
@@ -102,13 +88,6 @@ public class SamplesService extends Service {
     // Identificador de las notificaciones mostradas en el modo primer plano(foreground)
     private static final int NOTIFICATION_ID = 12345678;
 
-    /*
-     * Used to check whether the bound activity has really gone away and not unbound as part of an
-     * orientation change. We create a foreground service notification only if the former takes
-     * place.
-     */
-    private boolean mChangingConfiguration = false;
-
     private NotificationManager mNotificationManager;
 
     // Fused Location API
@@ -121,15 +100,12 @@ public class SamplesService extends Service {
     private LocationCallback mLocationCallback;
 
     // Última localización disponible
-    private Location mLocation;
+    private Location lastLocation;
     private TelephonyManager telephonyManager;
     private Path path;
 
     public Path getPath() {
         return this.path;
-    }
-    public Location getLocation() {
-        return this.mLocation;
     }
 
     public SamplesService() {
@@ -145,7 +121,7 @@ public class SamplesService extends Service {
         mServiceHandler = new Handler(handlerThread.getLooper());
 
 
-        path = new Path(CoverageMapActivity.CIRCLE_RADIUS*2+1);
+        path = new Path(DISTANCE_BETWEEN_CIRCLES);
         telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -165,20 +141,19 @@ public class SamplesService extends Service {
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         // Android O requiere canales de notificacion.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = getString(R.string.app_name);
-            // Create the channel for the notification
-            NotificationChannel mChannel =
-                    new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
+        CharSequence name = getString(R.string.app_name);
+        // Create the channel for the notification
+        NotificationChannel mChannel =
+                new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
 
-            // Crea el canal de notificaciones para el manejador de notificaciones
-            mNotificationManager.createNotificationChannel(mChannel);
-        }
+        // Crea el canal de notificaciones para el manejador de notificaciones
+        mNotificationManager.createNotificationChannel(mChannel);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Service started");
+
         boolean startedFromNotification = intent.getBooleanExtra(EXTRA_STARTED_FROM_NOTIFICATION,
                 false);
 
@@ -195,7 +170,6 @@ public class SamplesService extends Service {
     public IBinder onBind(Intent intent) {
         Log.i(TAG, "in onBind()");
         stopForeground(true);
-        mChangingConfiguration = false;
         return mBinder;
     }
 
@@ -206,7 +180,6 @@ public class SamplesService extends Service {
         // service when that happens.
         Log.i(TAG, "in onRebind()");
         stopForeground(true);
-        mChangingConfiguration = false;
         super.onRebind(intent);
     }
 
@@ -215,7 +188,7 @@ public class SamplesService extends Service {
         Log.i(TAG, "Last client unbound from service");
 
         // Comprueba que la MainActivity esté bindeada
-        if (!mChangingConfiguration && Utils.requestingLocationUpdates(this)) {
+        if (requestingLocationUpdates) {
             Log.i(TAG, "Starting foreground service");
 
             startForeground(NOTIFICATION_ID, getNotification());
@@ -232,7 +205,6 @@ public class SamplesService extends Service {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        mChangingConfiguration = true;
     }
 
 
@@ -248,7 +220,7 @@ public class SamplesService extends Service {
             mFusedLocationClient.getLastLocation()
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful() && task.getResult() != null) {
-                            mLocation = task.getResult();
+                            lastLocation = task.getResult();
                         } else {
                             Log.w(TAG, "Failed to get location.");
                         }
@@ -261,15 +233,19 @@ public class SamplesService extends Service {
     /**
      * Hace la petición para obtener actualizaciones periódicas de localización
      */
-    public void requestLocationUpdates() {
-        Utils.setRequestingLocationUpdates(this, true);
+    public void requestLocationUpdates(String modeNetwork) {
+        if(!TextUtils.equals(modeNetwork, this.modeNetwork)) {
+            this.modeNetwork = modeNetwork;
+            this.path = new Path(DISTANCE_BETWEEN_CIRCLES);
+        }
+        requestingLocationUpdates = true;
         startService(new Intent(getApplicationContext(), SamplesService.class));
         try {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                     mLocationCallback, Looper.myLooper());
         } catch (SecurityException unlikely) {
             Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
-            Utils.setRequestingLocationUpdates(this, false);
+            requestingLocationUpdates = false;
         }
     }
 
@@ -280,11 +256,11 @@ public class SamplesService extends Service {
         Log.i(TAG, "Removing location updates");
         try {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
-            Utils.setRequestingLocationUpdates(this, false);
+            requestingLocationUpdates = false;
             stopSelf();
         } catch (SecurityException unlikely) {
             Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
-            Utils.setRequestingLocationUpdates(this, true);
+            requestingLocationUpdates = true;
         }
     }
 
@@ -307,31 +283,32 @@ public class SamplesService extends Service {
     }
 
 
-    private static int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
+    private  int getSignalStrength(TelephonyManager telephonyManager) throws SecurityException {
         int strength = 0;
         int cont = 0;
+        Log.d(TAG, "Recibo modo de red " + modeNetwork);
         List<CellInfo> cellInfos = telephonyManager.getAllCellInfo();
         if(cellInfos != null) {
             for (CellInfo cell: cellInfos) {
                 if (cell.isRegistered()) {
                     cont++;
-                    if (cell instanceof CellInfoWcdma) {
+                    if (cell instanceof CellInfoWcdma && TextUtils.equals(modeNetwork, "3g")) {
+                        Log.d(TAG, "Modo de red 3g");
                         CellInfoWcdma cellInfoWcdma = (CellInfoWcdma) cell;
                         CellSignalStrengthWcdma cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                         strength += cellSignalStrengthWcdma.getLevel();
-                    } else if (cell instanceof CellInfoGsm) {
+                    } else if (cell instanceof CellInfoGsm && TextUtils.equals(modeNetwork, "2g")) {
+                        Log.d(TAG, "Modo de red 2g");
                         CellInfoGsm cellInfogsm = (CellInfoGsm) cell;
                         CellSignalStrengthGsm cellSignalStrengthGsm = cellInfogsm.getCellSignalStrength();
                         strength += cellSignalStrengthGsm.getLevel();
-                    } else if (cell instanceof CellInfoLte) {
+                    } else if (cell instanceof CellInfoLte && TextUtils.equals(modeNetwork, "4g")) {
+                        Log.d(TAG, "Modo de red 4g");
                         CellInfoLte cellInfoLte = (CellInfoLte) cell;
                         CellSignalStrengthLte cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
                         strength += cellSignalStrengthLte.getLevel();
-                    } else if (cell instanceof CellInfoCdma) {
-                        CellInfoCdma cellInfoCdma = (CellInfoCdma) cell;
-                        CellSignalStrengthCdma cellSignalStrengthCdma = cellInfoCdma.getCellSignalStrength();
-                        strength += cellSignalStrengthCdma.getLevel();
                     }
+                    else strength=0;
                 }
             }
         }
@@ -344,9 +321,10 @@ public class SamplesService extends Service {
     private void onNewLocation(Location location, int signalStrength) {
         Log.i(TAG, "New location: " + location);
 
-        mLocation = location;
+        lastLocation = location;
 
         Sample newSample = new Sample(location, signalStrength);
+
         if(this.path.addSample(newSample)) {
             // Notifica a todos los que se hayan suscrito al broadcast
             Intent intent = new Intent(ACTION_BROADCAST);
@@ -361,10 +339,10 @@ public class SamplesService extends Service {
         }
     }
 
-
-    /**
-     * Gestión de las notificaciones para el modo primer plano (foreground) del servicio
-     */
+    private static String getSampleText(Sample sample) {
+        return sample == null ? "No sample" :
+                "Lat: " + sample.getLocation().getLatitude() + ", Lng: " + sample.getLocation().getLongitude() + ", Signal: " + sample.getSignal();
+    }
 
     /**
      * Crea la notificación que se le muestra al usuario cuando el servicio se encuentra
@@ -373,7 +351,7 @@ public class SamplesService extends Service {
     private Notification getNotification() {
         Intent intent = new Intent(this, SamplesService.class);
 
-        CharSequence text = Utils.getLocationText(mLocation);
+        CharSequence text = getSampleText(this.path.getLastSample());
 
         // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
         intent.putExtra(EXTRA_STARTED_FROM_NOTIFICATION, true);
@@ -392,17 +370,14 @@ public class SamplesService extends Service {
                 .addAction(R.drawable.ic_cancel, getString(R.string.remove_location_updates),
                         servicePendingIntent)
                 .setContentText(text)
-                .setContentTitle(Utils.getLocationTitle(this))
+                .setContentTitle(getString(R.string.notification_title))
                 .setOngoing(true)
                 .setPriority(NotificationManager.IMPORTANCE_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis());
 
-        // Set the Channel ID for Android O.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder.setChannelId(CHANNEL_ID); // Channel ID
-        }
+        builder.setChannelId(CHANNEL_ID);
 
         return builder.build();
     }
