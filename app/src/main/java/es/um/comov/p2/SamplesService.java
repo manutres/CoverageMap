@@ -79,6 +79,10 @@ public class SamplesService extends Service {
     static final String EXTRA_SAMPLE = PACKAGE_NAME + ".sample";
     private static final String EXTRA_STARTED_FROM_NOTIFICATION = PACKAGE_NAME + ".started_from_notification";
     private String modeNetwork;
+    private boolean requestingLocationUpdates;
+    public boolean getRequestingLocationUpdates() {
+        return requestingLocationUpdates;
+    }
 
     /**
      * Clase que se devuelve a las actividades que se bindean con el servicio.
@@ -220,7 +224,7 @@ public class SamplesService extends Service {
         Log.i(TAG, "Last client unbound from service");
 
         // Comprueba que la MainActivity esté bindeada
-        if (!mChangingConfiguration && Utils.requestingLocationUpdates(this)) {
+        if (!mChangingConfiguration && requestingLocationUpdates) {
             Log.i(TAG, "Starting foreground service");
 
             startForeground(NOTIFICATION_ID, getNotification());
@@ -266,19 +270,19 @@ public class SamplesService extends Service {
     /**
      * Hace la petición para obtener actualizaciones periódicas de localización
      */
-    public void requestLocationUpdates(String network) {
-        if(!TextUtils.equals(network, modeNetwork)) {
-            modeNetwork = network;
+    public void requestLocationUpdates(String modeNetwork) {
+        if(!TextUtils.equals(modeNetwork, this.modeNetwork)) {
+            this.modeNetwork = modeNetwork;
             this.path = new Path(DISTANCE_BETWEEN_CIRCLES);
         }
-        Utils.setRequestingLocationUpdates(this, true);
+        requestingLocationUpdates = true;
         startService(new Intent(getApplicationContext(), SamplesService.class));
         try {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
                     mLocationCallback, Looper.myLooper());
         } catch (SecurityException unlikely) {
             Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
-            Utils.setRequestingLocationUpdates(this, false);
+            requestingLocationUpdates = false;
         }
     }
 
@@ -289,11 +293,11 @@ public class SamplesService extends Service {
         Log.i(TAG, "Removing location updates");
         try {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
-            Utils.setRequestingLocationUpdates(this, false);
+            requestingLocationUpdates = false;
             stopSelf();
         } catch (SecurityException unlikely) {
             Log.e(TAG, "Se han perdido los permisos de localización. " + unlikely);
-            Utils.setRequestingLocationUpdates(this, true);
+            requestingLocationUpdates = true;
         }
     }
 

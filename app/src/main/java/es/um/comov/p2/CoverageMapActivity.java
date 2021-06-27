@@ -5,6 +5,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -52,13 +53,14 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
     Marker userLocationMarker;
 
     private class MyReceiver extends BroadcastReceiver {
+        @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
-            showPosition();
             Sample newSample = (Sample) intent.getSerializableExtra(SamplesService.EXTRA_SAMPLE);
             if (newSample != null) {
                 mMap.addCircle(getSampleCircle(newSample));
 
+                mMap.setMyLocationEnabled(true);
 
                 // movemos la camara solo si es el primer sample
                 if(mService.getPath().getSamples().size() == 1) {
@@ -67,16 +69,6 @@ public class CoverageMapActivity extends FragmentActivity implements OnMapReadyC
                 }
             }
         }
-    }
-
-    private void showPosition() {
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            }, 0);
-            return;
-        }
-        mMap.setMyLocationEnabled(true);
     }
 
     private MyReceiver myReceiver;
